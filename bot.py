@@ -26,20 +26,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help or 'مساعدة' button is pressed."""
-    help_message = """
-كيفية استخدام البوت:
-1. اضغط على "الحصول على القالب" للحصول على قالب إكسل.
-2. قم بتعبئة البيانات المالية في القالب.
-3. اضغط على "إنشاء القوائم المالية" وقم برفع ملف الإكسل المعبأ.
-4. انتظر حتى يتم إنشاء القوائم المالية وتحميلها.
-
-How to use the bot:
-1. Press "Get Template" to obtain the Excel template.
-2. Fill in the financial data in the template.
-3. Press "Generate Financial Statements" and upload the filled Excel file.
-4. Wait until the financial statements are generated and downloaded.
-"""
-    await update.message.reply_text(help_message)
+    await update.message.reply_text(HELP_MESSAGE)
 
 async def instructions_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle the 'تعليمات' button."""
@@ -66,29 +53,57 @@ async def generate_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle Excel file uploads."""
+    # Check if we're waiting for an Excel file
     if not context.user_data.get("waiting_for_excel", False):
+        logger.info("Not waiting for an Excel file.")
         return
+    
+    # Reset waiting state
     context.user_data["waiting_for_excel"] = False
+    
+    # Get file info
     file = update.message.document
     file_name = file.file_name
+    logger.info(f"File received: {file_name}")
+    
+    # Check if it's an Excel file
     if not file_name.endswith(('.xlsx', '.xls')):
         await update.message.reply_text("يرجى رفع ملف إكسل فقط. / Please upload only Excel files.")
+        logger.info("Invalid file type uploaded.")
         return
+    
+    # Download the file
     await update.message.reply_text(PROCESSING_MESSAGE)
     new_file = await context.bot.get_file(file.file_id)
     input_path = os.path.join(TEMPLATE_DIR, f"input_{update.message.chat_id}.xlsx")
-    await new_file.download_to_drive(input_path)
     try:
+        await new_file.download_to_drive(input_path)
+        logger.info(f"File downloaded to: {input_path}")
+    except Exception as e:
+        logger.error(f"Error downloading file: {e}")
+        await update.message.reply_text(f"{ERROR_MESSAGE}\nError details: {str(e)}")
+        return
+    
+    try:
+        # Process the Excel file
         data = process_excel_file(input_path)
+        logger.info("Excel file processed successfully.")
+        
+        # Generate financial statements
         output_path = os.path.join(OUTPUT_DIR, f"financial_statements_{update.message.chat_id}.xlsx")
         generate_financial_statements(data, output_path)
+        logger.info(f"Financial statements generated at: {output_path}")
+        
+        # Send the result back to the user
         await update.message.reply_text(SUCCESS_MESSAGE)
         await update.message.reply_document(document=open(output_path, 'rb'))
+        
+        # Clean up
         try:
             os.remove(input_path)
             os.remove(output_path)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error cleaning up files: {e}")
     except Exception as e:
         logger.error(f"Error processing file: {e}")
         await update.message.reply_text(f"{ERROR_MESSAGE}\nError details: {str(e)}")
@@ -116,6 +131,9 @@ def start_bot() -> None:
     
     # Add message handler for custom keyboard buttons
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # Add document handler
+    application.add_handler(MessageHandler(filters.ATTACHMENT, handle_document))
     
     # Start the Bot
     application.run_polling()
