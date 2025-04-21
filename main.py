@@ -5,7 +5,7 @@ if __name__ == "__main__":
     # Set up logging
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.WARNING  # تغيير مستوى التسجيل إلى WARNING لتقليل الرسائل غير الضرورية
+        level=logging.WARNING  # تقليل مستوى التسجيل لتقليل الرسائل غير الضرورية
     )
     
     # تعطيل تسجيل الطلبات الناجحة من مكتبة httpx
