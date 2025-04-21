@@ -1,418 +1,630 @@
 import os
 import openpyxl
+import pandas as pd
+import matplotlib.pyplot as plt
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.chart import BarChart, Reference, PieChart, LineChart, Series
 
-def create_template(output_path):
-    """Create an Excel template for financial data input."""
+def generate_financial_statements(data, output_path):
+    """Generate financial statements based on the provided data."""
     wb = openpyxl.Workbook()
-    # Create sheets for different financial components
+    
+    # Create sheets for different financial statements
     sheets = {
-        'تعليمات | Instructions': wb.active,
-        'الإيرادات والمصروفات | Income': wb.create_sheet(),
-        'الأصول والخصوم | Balance': wb.create_sheet(),
-        'حقوق الملكية | Equity': wb.create_sheet(),
-        'التدفقات النقدية | Cash Flow': wb.create_sheet(),
-        'الملاحظات | Notes': wb.create_sheet()
+        'تقرير عام | Overview': wb.active,
+        'قائمة الدخل | Income Statement': wb.create_sheet(),
+        'قائمة المركز المالي | Balance Sheet': wb.create_sheet(),
+        'قائمة التغيرات في حقوق الملكية | Equity': wb.create_sheet(),
+        'قائمة التدفقات النقدية | Cash Flow': wb.create_sheet(),
+        'الملاحظات | Notes': wb.create_sheet(),
+        'الرسوم البيانية | Charts': wb.create_sheet()
     }
+    
     # Rename the default sheet
-    sheets['تعليمات | Instructions'].title = 'تعليمات | Instructions'
+    sheets['تقرير عام | Overview'].title = 'تقرير عام | Overview'
     
-    # Set up Instructions sheet
-    instructions = sheets['تعليمات | Instructions']
-    instructions['A1'] = 'تعليمات استخدام القالب | Template Instructions'
-    instructions['A1'].font = Font(bold=True, size=14)
-    instructions['A3'] = 'مرحباً بكم في قالب القوائم المالية! | Welcome to the Financial Statements Template!'
-    instructions['A5'] = '1. قم بتعبئة البيانات المالية في كل ورقة من أوراق هذا الملف.'
-    instructions['A6'] = '1. Fill in the financial data in each sheet of this file.'
-    instructions['A8'] = '2. تأكد من إدخال جميع المبالغ بالأرقام فقط (بدون رموز العملة).'
-    instructions['A9'] = '2. Make sure to enter all amounts as numbers only (without currency symbols).'
-    instructions['A11'] = '3. أكمل جميع الأوراق للحصول على قوائم مالية كاملة ودقيقة.'
-    instructions['A12'] = '3. Complete all sheets to get complete and accurate financial statements.'
-    instructions['A14'] = '4. بعد الانتهاء، احفظ الملف وقم برفعه باستخدام أمر /generate في البوت.'
-    instructions['A15'] = '4. When finished, save the file and upload it using the /generate command in the bot.'
-    
-    # Format cells to appropriate width
-    for col in range(1, 10):
-        instructions.column_dimensions[get_column_letter(col)].width = 30
-    
-    # Set up other sheets
-    setup_income_sheet(sheets['الإيرادات والمصروفات | Income'])
-    setup_balance_sheet(sheets['الأصول والخصوم | Balance'])
-    setup_equity_sheet(sheets['حقوق الملكية | Equity'])
-    setup_cash_flow_sheet(sheets['التدفقات النقدية | Cash Flow'])
-    setup_notes_sheet(sheets['الملاحظات | Notes'])
+    # Generate each statement
+    generate_overview(sheets['تقرير عام | Overview'], data)
+    generate_income_statement(sheets['قائمة الدخل | Income Statement'], data['income'])
+    generate_balance_sheet(sheets['قائمة المركز المالي | Balance Sheet'], data['balance'])
+    generate_equity_statement(sheets['قائمة التغيرات في حقوق الملكية | Equity'], data['equity'])
+    generate_cash_flow_statement(sheets['قائمة التدفقات النقدية | Cash Flow'], data['cash_flow'])
+    generate_notes(sheets['الملاحظات | Notes'], data['notes'])
+    generate_charts(sheets['الرسوم البيانية | Charts'], data)
     
     # Save the workbook
     wb.save(output_path)
     return output_path
 
-def setup_income_sheet(sheet):
+def generate_overview(sheet, data):
+    """Generate an overview sheet with key financial metrics."""
+    # Set up header
+    sheet['A1'] = 'التقرير المالي الشامل | Comprehensive Financial Report'
+    sheet['A1'].font = Font(bold=True, size=16)
+    sheet['A3'] = 'المؤشرات المالية الرئيسية | Key Financial Indicators'
+    sheet['A3'].font = Font(bold=True, size=14)
+    
+    # Format cells
+    sheet.column_dimensions['A'].width = 40
+    sheet.column_dimensions['B'].width = 20
+    sheet.column_dimensions['C'].width = 20
+    
+    # Set up key metrics header
+    sheet['A5'] = 'المؤشر | Indicator'
+    sheet['B5'] = 'السنة الحالية | Current Year'
+    sheet['C5'] = 'السنة السابقة | Previous Year'
+    sheet['D5'] = 'التغيير٪ | Change%'
+    
+    for cell in sheet['5:5']:
+        cell.font = Font(bold=True)
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.alignment = Alignment(horizontal='center')
+    
+    # Extract key metrics from data
+    try:
+        # Revenue
+        total_revenue_current = data['income'].get('إجمالي الإيرادات | Total Revenue', {}).get('current', 0)
+        total_revenue_previous = data['income'].get('إجمالي الإيرادات | Total Revenue', {}).get('previous', 0)
+        
+        # Net profit
+        net_profit_current = data['income'].get('صافي الربح | Net Profit', {}).get('current', 0)
+        net_profit_previous = data['income'].get('صافي الربح | Net Profit', {}).get('previous', 0)
+        
+        # Total assets
+        total_assets_current = data['balance'].get('إجمالي الأصول | Total Assets', {}).get('current', 0)
+        total_assets_previous = data['balance'].get('إجمالي الأصول | Total Assets', {}).get('previous', 0)
+        
+        # Total liabilities
+        total_liabilities_current = data['balance'].get('إجمالي الخصوم | Total Liabilities', {}).get('current', 0)
+        total_liabilities_previous = data['balance'].get('إجمالي الخصوم | Total Liabilities', {}).get('previous', 0)
+        
+        # Total equity
+        total_equity_current = data['balance'].get('إجمالي حقوق الملكية | Total Equity', {}).get('current', 0)
+        total_equity_previous = data['balance'].get('إجمالي حقوق الملكية | Total Equity', {}).get('previous', 0)
+        
+        # Cash at end of year
+        cash_end_current = data['cash_flow'].get('النقد وما في حكمه في نهاية السنة | Cash and cash equivalents at end of year', {}).get('current', 0)
+        cash_end_previous = data['cash_flow'].get('النقد وما في حكمه في نهاية السنة | Cash and cash equivalents at end of year', {}).get('previous', 0)
+        
+        # Calculate ratios
+        profitability_current = (net_profit_current / total_revenue_current * 100) if total_revenue_current else 0
+        profitability_previous = (net_profit_previous / total_revenue_previous * 100) if total_revenue_previous else 0
+        
+        liquidity_current = total_assets_current / total_liabilities_current if total_liabilities_current else 0
+        liquidity_previous = total_assets_previous / total_liabilities_previous if total_liabilities_previous else 0
+        
+        debt_equity_current = total_liabilities_current / total_equity_current if total_equity_current else 0
+        debt_equity_previous = total_liabilities_previous / total_equity_previous if total_equity_previous else 0
+        
+        # Calculate percentage changes
+        def calculate_change(current, previous):
+            if previous:
+                return ((current - previous) / previous) * 100
+            return 0
+        
+        revenue_change = calculate_change(total_revenue_current, total_revenue_previous)
+        profit_change = calculate_change(net_profit_current, net_profit_previous)
+        assets_change = calculate_change(total_assets_current, total_assets_previous)
+        liabilities_change = calculate_change(total_liabilities_current, total_liabilities_previous)
+        equity_change = calculate_change(total_equity_current, total_equity_previous)
+        cash_change = calculate_change(cash_end_current, cash_end_previous)
+        profitability_change = calculate_change(profitability_current, profitability_previous)
+        liquidity_change = calculate_change(liquidity_current, liquidity_previous)
+        debt_equity_change = calculate_change(debt_equity_current, debt_equity_previous)
+        
+        # Add metrics to sheet
+        metrics = [
+            ('إجمالي الإيرادات | Total Revenue', total_revenue_current, total_revenue_previous, revenue_change),
+            ('صافي الربح | Net Profit', net_profit_current, net_profit_previous, profit_change),
+            ('إجمالي الأصول | Total Assets', total_assets_current, total_assets_previous, assets_change),
+            ('إجمالي الخصوم | Total Liabilities', total_liabilities_current, total_liabilities_previous, liabilities_change),
+            ('إجمالي حقوق الملكية | Total Equity', total_equity_current, total_equity_previous, equity_change),
+            ('النقد في نهاية السنة | Cash at End of Year', cash_end_current, cash_end_previous, cash_change),
+            ('معدل الربحية٪ | Profitability Ratio %', profitability_current, profitability_previous, profitability_change),
+            ('نسبة السيولة | Liquidity Ratio', liquidity_current, liquidity_previous, liquidity_change),
+            ('نسبة الدين إلى حقوق الملكية | Debt to Equity', debt_equity_current, debt_equity_previous, debt_equity_change)
+        ]
+        
+        for i, (metric, current, previous, change) in enumerate(metrics, start=6):
+            sheet[f'A{i}'] = metric
+            sheet[f'B{i}'] = current
+            sheet[f'C{i}'] = previous
+            sheet[f'D{i}'] = f"{change:.2f}%"
+            
+            # Color code changes
+            if change > 0 and i < 9:  # For ratios, the meaning of positive/negative can be different
+                sheet[f'D{i}'].fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+            elif change < 0 and i < 9:
+                sheet[f'D{i}'].fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    
+    except Exception as e:
+        sheet['A15'] = f"خطأ في حساب المؤشرات: {str(e)}"
+    
+    # Add a financial summary section
+    sheet['A16'] = 'ملخص الأداء المالي | Financial Performance Summary'
+    sheet['A16'].font = Font(bold=True, size=14)
+    
+    try:
+        if net_profit_current > net_profit_previous:
+            performance = "تحسن الأداء المالي مقارنة بالعام السابق. | Financial performance improved compared to previous year."
+        elif net_profit_current < net_profit_previous:
+            performance = "انخفاض الأداء المالي مقارنة بالعام السابق. | Financial performance declined compared to previous year."
+        else:
+            performance = "استقرار الأداء المالي مقارنة بالعام السابق. | Financial performance stable compared to previous year."
+        
+        sheet['A18'] = performance
+        
+        # Add liquidity assessment
+        if liquidity_current >= 2:
+            liquidity_assessment = "وضع السيولة ممتاز. | Excellent liquidity position."
+        elif liquidity_current >= 1:
+            liquidity_assessment = "وضع السيولة جيد. | Good liquidity position."
+        else:
+            liquidity_assessment = "وضع السيولة يحتاج إلى تحسين. | Liquidity position needs improvement."
+        
+        sheet['A19'] = liquidity_assessment
+        
+        # Add debt assessment
+        if debt_equity_current <= 0.5:
+            debt_assessment = "نسبة الدين منخفضة، مما يشير إلى مخاطر مالية منخفضة. | Low debt ratio indicating low financial risk."
+        elif debt_equity_current <= 1:
+            debt_assessment = "نسبة الدين معتدلة. | Moderate debt ratio."
+        else:
+            debt_assessment = "نسبة الدين مرتفعة، مما قد يشير إلى مخاطر مالية. | High debt ratio which may indicate financial risk."
+        
+        sheet['A20'] = debt_assessment
+    
+    except Exception as e:
+        sheet['A18'] = f"خطأ في تحليل الأداء: {str(e)}"
+
+def generate_income_statement(sheet, income_data):
+    """Generate income statement."""
     # Set up header
     sheet['A1'] = 'قائمة الدخل | Income Statement'
-    sheet['A1'].font = Font(bold=True, size=14)
+    sheet['A1'].font = Font(bold=True, size=16)
     sheet['A3'] = 'البند | Item'
-    sheet['B3'] = 'المبلغ (السنة الحالية) | Amount (Current Year)'
-    sheet['C3'] = 'المبلغ (السنة السابقة) | Amount (Previous Year)'
+    sheet['B3'] = 'السنة الحالية | Current Year'
+    sheet['C3'] = 'السنة السابقة | Previous Year'
+    sheet['D3'] = 'التغيير | Change'
+    sheet['E3'] = 'التغيير٪ | Change%'
+    
     # Format header row
     for cell in sheet['3:3']:
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.font = Font(bold=True, color="FFFFFF")
         cell.alignment = Alignment(horizontal='center')
-    # Set up income items
-    income_items = [
-        'الإيرادات | Revenues',
-        'إيرادات المبيعات | Sales Revenue',
-        'إيرادات الخدمات | Services Revenue',
-        'إيرادات أخرى | Other Revenue',
-        'إجمالي الإيرادات | Total Revenue',
-        '',
-        'المصروفات | Expenses',
-        'تكلفة البضاعة المباعة | Cost of Goods Sold',
-        'مصروفات الرواتب | Salary Expenses',
-        'مصروفات الإيجار | Rent Expenses',
-        'مصروفات المرافق | Utility Expenses',
-        'مصروفات التسويق | Marketing Expenses',
-        'الاستهلاك والإطفاء | Depreciation & Amortization',
-        'مصروفات أخرى | Other Expenses',
-        'إجمالي المصروفات | Total Expenses',
-        '',
-        'الربح قبل الضرائب | Profit Before Tax',
-        'ضريبة الدخل | Income Tax',
-        'صافي الربح | Net Profit'
-    ]
-    for i, item in enumerate(income_items, start=4):
-        sheet[f'A{i}'] = item
-        if item.startswith('إجمالي') or item.startswith('صافي') or item.startswith('الربح'):
-            sheet[f'A{i}'].font = Font(bold=True)
-    # Format columns width
-    sheet.column_dimensions['A'].width = 35
-    sheet.column_dimensions['B'].width = 25
-    sheet.column_dimensions['C'].width = 25
+    
+    # Set column widths
+    sheet.column_dimensions['A'].width = 40
+    sheet.column_dimensions['B'].width = 20
+    sheet.column_dimensions['C'].width = 20
+    sheet.column_dimensions['D'].width = 20
+    sheet.column_dimensions['E'].width = 20
+    
+    # Add income items
+    row = 4
+    for item, values in income_data.items():
+        sheet[f'A{row}'] = item
+        sheet[f'B{row}'] = values.get('current', 0)
+        sheet[f'C{row}'] = values.get('previous', 0)
+        
+        # Calculate change
+        current = values.get('current', 0)
+        previous = values.get('previous', 0)
+        change = current - previous
+        sheet[f'D{row}'] = change
+        
+        # Calculate percentage change
+        if previous != 0:
+            change_percent = (change / previous) * 100
+            sheet[f'E{row}'] = f"{change_percent:.2f}%"
+        else:
+            sheet[f'E{row}'] = "N/A"
+        
+        # Format totals and net profit
+        if "إجمالي" in item or "صافي" in item or "الربح" in item:
+            sheet[f'A{row}'].font = Font(bold=True)
+            sheet[f'B{row}'].font = Font(bold=True)
+            sheet[f'C{row}'].font = Font(bold=True)
+            sheet[f'D{row}'].font = Font(bold=True)
+            sheet[f'E{row}'].font = Font(bold=True)
+            
+            # Add background color
+            for col in ['A', 'B', 'C', 'D', 'E']:
+                sheet[f'{col}{row}'].fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        
+        row += 1
 
-def setup_balance_sheet(sheet):
+def generate_balance_sheet(sheet, balance_data):
+    """Generate balance sheet."""
     # Set up header
     sheet['A1'] = 'قائمة المركز المالي | Balance Sheet'
-    sheet['A1'].font = Font(bold=True, size=14)
+    sheet['A1'].font = Font(bold=True, size=16)
     sheet['A3'] = 'البند | Item'
-    sheet['B3'] = 'المبلغ (السنة الحالية) | Amount (Current Year)'
-    sheet['C3'] = 'المبلغ (السنة السابقة) | Amount (Previous Year)'
+    sheet['B3'] = 'السنة الحالية | Current Year'
+    sheet['C3'] = 'السنة السابقة | Previous Year'
+    sheet['D3'] = 'التغيير | Change'
+    sheet['E3'] = 'التغيير٪ | Change%'
+    
     # Format header row
     for cell in sheet['3:3']:
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.font = Font(bold=True, color="FFFFFF")
         cell.alignment = Alignment(horizontal='center')
-    # Set up assets
-    assets = [
-        'الأصول | Assets',
-        'الأصول المتداولة | Current Assets',
-        'النقدية وما في حكمها | Cash and Cash Equivalents',
-        'الذمم المدينة | Accounts Receivable',
-        'المخزون | Inventory',
-        'أصول متداولة أخرى | Other Current Assets',
-        'إجمالي الأصول المتداولة | Total Current Assets',
-        '',
-        'الأصول غير المتداولة | Non-Current Assets',
-        'الممتلكات والمعدات | Property and Equipment',
-        'الأصول غير الملموسة | Intangible Assets',
-        'استثمارات طويلة الأجل | Long-term Investments',
-        'أصول غير متداولة أخرى | Other Non-Current Assets',
-        'إجمالي الأصول غير المتداولة | Total Non-Current Assets',
-        '',
-        'إجمالي الأصول | Total Assets',
-        '',
-        'الخصوم وحقوق الملكية | Liabilities and Equity',
-        'الخصوم المتداولة | Current Liabilities',
-        'الذمم الدائنة | Accounts Payable',
-        'القروض قصيرة الأجل | Short-term Loans',
-        'الإيرادات المؤجلة | Deferred Revenue',
-        'خصوم متداولة أخرى | Other Current Liabilities',
-        'إجمالي الخصوم المتداولة | Total Current Liabilities',
-        '',
-        'الخصوم غير المتداولة | Non-Current Liabilities',
-        'القروض طويلة الأجل | Long-term Loans',
-        'مخصص مكافأة نهاية الخدمة | End of Service Benefits',
-        'خصوم غير متداولة أخرى | Other Non-Current Liabilities',
-        'إجمالي الخصوم غير المتداولة | Total Non-Current Liabilities',
-        '',
-        'إجمالي الخصوم | Total Liabilities',
-        '',
-        'حقوق الملكية | Equity',
-        'رأس المال | Capital',
-        'الاحتياطيات | Reserves',
-        'الأرباح المحتجزة | Retained Earnings',
-        'إجمالي حقوق الملكية | Total Equity',
-        '',
-        'إجمالي الخصوم وحقوق الملكية | Total Liabilities and Equity'
-    ]
-    for i, item in enumerate(assets, start=4):
-        sheet[f'A{i}'] = item
-        if item.startswith('إجمالي') or item == 'الأصول | Assets' or item == 'الخصوم وحقوق الملكية | Liabilities and Equity':
-            sheet[f'A{i}'].font = Font(bold=True)
-    # Format columns width
-    sheet.column_dimensions['A'].width = 35
-    sheet.column_dimensions['B'].width = 25
-    sheet.column_dimensions['C'].width = 25
+    
+    # Set column widths
+    sheet.column_dimensions['A'].width = 40
+    sheet.column_dimensions['B'].width = 20
+    sheet.column_dimensions['C'].width = 20
+    sheet.column_dimensions['D'].width = 20
+    sheet.column_dimensions['E'].width = 20
+    
+    # Add balance sheet items
+    row = 4
+    for item, values in balance_data.items():
+        sheet[f'A{row}'] = item
+        sheet[f'B{row}'] = values.get('current', 0)
+        sheet[f'C{row}'] = values.get('previous', 0)
+        
+        # Calculate change
+        current = values.get('current', 0)
+        previous = values.get('previous', 0)
+        change = current - previous
+        sheet[f'D{row}'] = change
+        
+        # Calculate percentage change
+        if previous != 0:
+            change_percent = (change / previous) * 100
+            sheet[f'E{row}'] = f"{change_percent:.2f}%"
+        else:
+            sheet[f'E{row}'] = "N/A"
+        
+        # Format section headers and totals
+        if "إجمالي" in item or "الأصول" in item or "الخصوم وحقوق الملكية" in item or "الخصوم المتداولة" in item or "الخصوم غير المتداولة" in item or "حقوق الملكية" in item:
+            sheet[f'A{row}'].font = Font(bold=True)
+            sheet[f'B{row}'].font = Font(bold=True)
+            sheet[f'C{row}'].font = Font(bold=True)
+            sheet[f'D{row}'].font = Font(bold=True)
+            sheet[f'E{row}'].font = Font(bold=True)
+            
+            # Add background color for totals
+            if "إجمالي" in item:
+                for col in ['A', 'B', 'C', 'D', 'E']:
+                    sheet[f'{col}{row}'].fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        
+        row += 1
+    
+    # Validate balance sheet (Assets = Liabilities + Equity)
+    try:
+        assets = balance_data.get('إجمالي الأصول | Total Assets', {}).get('current', 0)
+        liab_equity = balance_data.get('إجمالي الخصوم وحقوق الملكية | Total Liabilities and Equity', {}).get('current', 0)
+        
+        sheet[f'A{row+2}'] = 'التحقق من توازن قائمة المركز المالي | Balance Sheet Check'
+        sheet[f'A{row+2}'].font = Font(bold=True)
+        
+        if abs(assets - liab_equity) < 0.01:  # Allow for floating point imprecision
+            sheet[f'B{row+2}'] = 'متوازن ✓ | Balanced ✓'
+            sheet[f'B{row+2}'].fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+        else:
+            sheet[f'B{row+2}'] = f'غير متوازن ✗ | Not Balanced ✗ (فرق | Difference: {assets - liab_equity})'
+            sheet[f'B{row+2}'].fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    except:
+        pass
 
-def setup_equity_sheet(sheet):
+def generate_equity_statement(sheet, equity_data):
+    """Generate statement of changes in equity."""
     # Set up header
     sheet['A1'] = 'قائمة التغيرات في حقوق الملكية | Statement of Changes in Equity'
-    sheet['A1'].font = Font(bold=True, size=14)
+    sheet['A1'].font = Font(bold=True, size=16)
     sheet['A3'] = 'البند | Item'
     sheet['B3'] = 'رأس المال | Capital'
     sheet['C3'] = 'الاحتياطيات | Reserves'
     sheet['D3'] = 'الأرباح المحتجزة | Retained Earnings'
     sheet['E3'] = 'الإجمالي | Total'
+    
     # Format header row
     for cell in sheet['3:3']:
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.font = Font(bold=True, color="FFFFFF")
         cell.alignment = Alignment(horizontal='center')
-    # Set up equity items
-    equity_items = [
-        'الرصيد في بداية السنة | Balance at beginning of year',
-        'صافي الربح للسنة | Net profit for the year',
-        'توزيعات الأرباح | Dividends',
-        'زيادة رأس المال | Capital increase',
-        'المحول للاحتياطيات | Transferred to reserves',
-        'تغييرات أخرى | Other changes',
-        'الرصيد في نهاية السنة | Balance at end of year'
-    ]
-    for i, item in enumerate(equity_items, start=4):
-        sheet[f'A{i}'] = item
-        if item.startswith('الرصيد في'):
-            sheet[f'A{i}'].font = Font(bold=True)
-    # Format columns width
-    sheet.column_dimensions['A'].width = 35
+    
+    # Set column widths
+    sheet.column_dimensions['A'].width = 40
     sheet.column_dimensions['B'].width = 20
     sheet.column_dimensions['C'].width = 20
     sheet.column_dimensions['D'].width = 20
     sheet.column_dimensions['E'].width = 20
+    
+    # Add equity items
+    row = 4
+    for item, values in equity_data.items():
+        sheet[f'A{row}'] = item
+        sheet[f'B{row}'] = values.get('capital', 0)
+        sheet[f'C{row}'] = values.get('reserves', 0)
+        sheet[f'D{row}'] = values.get('retained', 0)
+        sheet[f'E{row}'] = values.get('total', 0)
+        
+        # Format beginning and ending balances
+        if "الرصيد في" in item:
+            sheet[f'A{row}'].font = Font(bold=True)
+            sheet[f'B{row}'].font = Font(bold=True)
+            sheet[f'C{row}'].font = Font(bold=True)
+            sheet[f'D{row}'].font = Font(bold=True)
+            sheet[f'E{row}'].font = Font(bold=True)
+            
+            # Add background color
+            for col in ['A', 'B', 'C', 'D', 'E']:
+                sheet[f'{col}{row}'].fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        
+        row += 1
+    
+    # Validate totals
+    try:
+        start_balance = equity_data.get('الرصيد في بداية السنة | Balance at beginning of year', {}).get('total', 0)
+        net_profit = equity_data.get('صافي الربح للسنة | Net profit for the year', {}).get('total', 0)
+        dividends = equity_data.get('توزيعات الأرباح | Dividends', {}).get('total', 0)
+        capital_increase = equity_data.get('زيادة رأس المال | Capital increase', {}).get('total', 0)
+        other_changes = equity_data.get('تغييرات أخرى | Other changes', {}).get('total', 0)
+        end_balance = equity_data.get('الرصيد في نهاية السنة | Balance at end of year', {}).get('total', 0)
+        
+        expected_end = start_balance + net_profit - dividends + capital_increase + other_changes
+        
+        sheet[f'A{row+2}'] = 'التحقق من صحة الحسابات | Validation Check'
+        sheet[f'A{row+2}'].font = Font(bold=True)
+        
+        if abs(expected_end - end_balance) < 0.01:  # Allow for floating point imprecision
+            sheet[f'B{row+2}'] = 'صحيح ✓ | Correct ✓'
+            sheet[f'B{row+2}'].fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+        else:
+            sheet[f'B{row+2}'] = f'غير صحيح ✗ | Incorrect ✗ (فرق | Difference: {expected_end - end_balance})'
+            sheet[f'B{row+2}'].fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    except:
+        pass
 
-def setup_cash_flow_sheet(sheet):
+def generate_cash_flow_statement(sheet, cash_flow_data):
+    """Generate cash flow statement."""
     # Set up header
     sheet['A1'] = 'قائمة التدفقات النقدية | Cash Flow Statement'
-    sheet['A1'].font = Font(bold=True, size=14)
+    sheet['A1'].font = Font(bold=True, size=16)
     sheet['A3'] = 'البند | Item'
-    sheet['B3'] = 'المبلغ (السنة الحالية) | Amount (Current Year)'
-    sheet['C3'] = 'المبلغ (السنة السابقة) | Amount (Previous Year)'
+    sheet['B3'] = 'السنة الحالية | Current Year'
+    sheet['C3'] = 'السنة السابقة | Previous Year'
+    sheet['D3'] = 'التغيير | Change'
+    sheet['E3'] = 'التغيير٪ | Change%'
+    
     # Format header row
     for cell in sheet['3:3']:
         cell.font = Font(bold=True)
-        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.font = Font(bold=True, color="FFFFFF")
         cell.alignment = Alignment(horizontal='center')
-    # Set up cash flow items
-    cash_flow_items = [
-        'التدفقات النقدية من الأنشطة التشغيلية | Cash flows from operating activities',
-        'صافي الربح | Net profit',
-        'تعديلات لـ: | Adjustments for:',
-        'الاستهلاك والإطفاء | Depreciation and amortization',
-        'التغير في الذمم المدينة | Change in accounts receivable',
-        'التغير في المخزون | Change in inventory',
-        'التغير في الذمم الدائنة | Change in accounts payable',
-        'تعديلات أخرى | Other adjustments',
-        'صافي النقد من الأنشطة التشغيلية | Net cash from operating activities',
-        '',
-        'التدفقات النقدية من الأنشطة الاستثمارية | Cash flows from investing activities',
-        'شراء ممتلكات ومعدات | Purchase of property and equipment',
-        'بيع ممتلكات ومعدات | Sale of property and equipment',
-        'استثمارات جديدة | New investments',
-        'بيع استثمارات | Sale of investments',
-        'صافي النقد من الأنشطة الاستثمارية | Net cash from investing activities',
-        '',
-        'التدفقات النقدية من الأنشطة التمويلية | Cash flows from financing activities',
-        'توزيعات أرباح مدفوعة | Dividends paid',
-        'قروض جديدة | New loans',
-        'سداد قروض | Loan repayments',
-        'زيادة رأس المال | Capital increase',
-        'صافي النقد من الأنشطة التمويلية | Net cash from financing activities',
-        '',
-        'صافي التغير في النقد وما في حكمه | Net change in cash and cash equivalents',
-        'النقد وما في حكمه في بداية السنة | Cash and cash equivalents at beginning of year',
-        'النقد وما في حكمه في نهاية السنة | Cash and cash equivalents at end of year'
-    ]
-    for i, item in enumerate(cash_flow_items, start=4):
-        sheet[f'A{i}'] = item
-        if item.startswith('صافي النقد') or item.startswith('التدفقات النقدية') or item == 'النقد وما في حكمه في نهاية السنة | Cash and cash equivalents at end of year':
-            sheet[f'A{i}'].font = Font(bold=True)
-    # Format columns width
-    sheet.column_dimensions['A'].width = 45
-    sheet.column_dimensions['B'].width = 25
-    sheet.column_dimensions['C'].width = 25
+    
+    # Set column widths
+    sheet.column_dimensions['A'].width = 50
+    sheet.column_dimensions['B'].width = 20
+    sheet.column_dimensions['C'].width = 20
+    sheet.column_dimensions['D'].width = 20
+    sheet.column_dimensions['E'].width = 20
+    
+    # Add cash flow items
+    row = 4
+    for item, values in cash_flow_data.items():
+        sheet[f'A{row}'] = item
+        sheet[f'B{row}'] = values.get('current', 0)
+        sheet[f'C{row}'] = values.get('previous', 0)
+        
+        # Calculate change
+        current = values.get('current', 0)
+        previous = values.get('previous', 0)
+        change = current - previous
+        sheet[f'D{row}'] = change
+        
+        # Calculate percentage change
+        if previous != 0:
+            change_percent = (change / previous) * 100
+            sheet[f'E{row}'] = f"{change_percent:.2f}%"
+        else:
+            sheet[f'E{row}'] = "N/A"
+        
+        # Format section headers and net cash
+        if "التدفقات النقدية من" in item or "صافي النقد" in item or "النقد وما في حكمه" in item:
+            sheet[f'A{row}'].font = Font(bold=True)
+            sheet[f'B{row}'].font = Font(bold=True)
+            sheet[f'C{row}'].font = Font(bold=True)
+            sheet[f'D{row}'].font = Font(bold=True)
+            sheet[f'E{row}'].font = Font(bold=True)
+            
+            # Add background color for net cash and cash at year-end
+            if "صافي النقد" in item or "النقد وما في حكمه في نهاية السنة" in item:
+                for col in ['A', 'B', 'C', 'D', 'E']:
+                    sheet[f'{col}{row}'].fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        
+        row += 1
+    
+    # Validate cash flow (cash at beginning + net change = cash at end)
+    try:
+        beg_cash = cash_flow_data.get('النقد وما في حكمه في بداية السنة | Cash and cash equivalents at beginning of year', {}).get('current', 0)
+        net_change = cash_flow_data.get('صافي التغير في النقد وما في حكمه | Net change in cash and cash equivalents', {}).get('current', 0)
+        end_cash = cash_flow_data.get('النقد وما في حكمه في نهاية السنة | Cash and cash equivalents at end of year', {}).get('current', 0)
+        
+        expected_end = beg_cash + net_change
+        
+        sheet[f'A{row+2}'] = 'التحقق من صحة حسابات التدفقات النقدية | Cash Flow Validation'
+        sheet[f'A{row+2}'].font = Font(bold=True)
+        
+        if abs(expected_end - end_cash) < 0.01:  # Allow for floating point imprecision
+            sheet[f'B{row+2}'] = 'صحيح ✓ | Correct ✓'
+            sheet[f'B{row+2}'].fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+        else:
+            sheet[f'B{row+2}'] = f'غير صحيح ✗ | Incorrect ✗ (فرق | Difference: {expected_end - end_cash})'
+            sheet[f'B{row+2}'].fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    except:
+        pass
 
-def setup_notes_sheet(sheet):
+def generate_notes(sheet, notes_data):
+    """Generate notes to financial statements."""
     # Set up header
     sheet['A1'] = 'الملاحظات على القوائم المالية | Notes to Financial Statements'
-    sheet['A1'].font = Font(bold=True, size=14)
-    # Set up sections
-    notes_sections = [
-        ('A3', 'ملاحظة 1: معلومات عامة | Note 1: General Information'),
-        ('A7', 'ملاحظة 2: أسس الإعداد | Note 2: Basis of Preparation'),
-        ('A11', 'ملاحظة 3: السياسات المحاسبية الهامة | Note 3: Significant Accounting Policies'),
-        ('A15', 'ملاحظة 4: الأحكام والتقديرات المحاسبية الهامة | Note 4: Significant Accounting Judgments and Estimates'),
-        ('A19', 'ملاحظة 5: إدارة المخاطر المالية | Note 5: Financial Risk Management'),
-        ('A23', 'ملاحظة 6: معلومات إضافية حول بنود القوائم المالية | Note 6: Additional Information on Financial Statement Items'),
-        ('A27', 'ملاحظة 7: أحداث لاحقة | Note 7: Subsequent Events')
+    sheet['A1'].font = Font(bold=True, size=16)
+    
+    # Set column widths
+    sheet.column_dimensions['A'].width = 30
+    sheet.column_dimensions['B'].width = 70
+    
+    # Add notes
+    notes = [
+        (3, 'ملاحظة 1: معلومات عامة | Note 1: General Information', 'note1'),
+        (7, 'ملاحظة 2: أسس الإعداد | Note 2: Basis of Preparation', 'note2'),
+        (11, 'ملاحظة 3: السياسات المحاسبية الهامة | Note 3: Significant Accounting Policies', 'note3'),
+        (15, 'ملاحظة 4: الأحكام والتقديرات المحاسبية الهامة | Note 4: Significant Accounting Judgments and Estimates', 'note4'),
+        (19, 'ملاحظة 5: إدارة المخاطر المالية | Note 5: Financial Risk Management', 'note5'),
+        (23, 'ملاحظة 6: معلومات إضافية حول بنود القوائم المالية | Note 6: Additional Information on Financial Statement Items', 'note6'),
+        (27, 'ملاحظة 7: أحداث لاحقة | Note 7: Subsequent Events', 'note7')
     ]
-    for cell_ref, title in notes_sections:
-        sheet[cell_ref] = title
-        sheet[cell_ref].font = Font(bold=True)
-    # Format columns width
-    sheet.column_dimensions['A'].width = 50
-    sheet.column_dimensions['B'].width = 50
-    # Add instructions
-    sheet['A4'] = 'أدخل وصفًا موجزًا للمنشأة وطبيعة أنشطتها الرئيسية. | Enter a brief description of the entity and the nature of its main activities.'
-    sheet['A8'] = 'اذكر المعايير المحاسبية المتبعة وأساس القياس. | Mention the accounting standards followed and the measurement basis.'
-    sheet['A12'] = 'اشرح السياسات المحاسبية الرئيسية المطبقة. | Explain the main accounting policies applied.'
-    sheet['A16'] = 'اذكر الأحكام والتقديرات الهامة المستخدمة. | Mention significant judgments and estimates used.'
-    sheet['A20'] = 'وضح كيفية إدارة المخاطر المالية مثل مخاطر الائتمان والسيولة والسوق. | Explain how financial risks such as credit, liquidity, and market risks are managed.'
-    sheet['A24'] = 'قدم تفاصيل إضافية عن البنود الهامة في القوائم المالية. | Provide additional details about important items in the financial statements.'
-    sheet['A28'] = 'اذكر أي أحداث هامة وقعت بعد تاريخ التقرير. | Mention any significant events that occurred after the reporting date.'
-
-def process_excel_file(file_path):
-    """Process the Excel file and extract financial data."""
-    try:
-        wb = openpyxl.load_workbook(file_path)
-        # Extract data from each sheet
-        data = {
-            'income': extract_income_data(wb['الإيرادات والمصروفات | Income']),
-            'balance': extract_balance_data(wb['الأصول والخصوم | Balance']),
-            'equity': extract_equity_data(wb['حقوق الملكية | Equity']),
-            'cash_flow': extract_cash_flow_data(wb['التدفقات النقدية | Cash Flow']),
-            'notes': extract_notes_data(wb['الملاحظات | Notes'])
-        }
-        # Collect errors
-        errors = collect_errors(data)
-        data['errors'] = errors  # Add errors to the returned data
-        return data
-    except Exception as e:
-        raise Exception(f"Error processing Excel file: {str(e)}")
-
-def extract_income_data(sheet):
-    """Extract data from income statement sheet."""
-    data = {}
-    errors = []
-    for row in range(4, 23):  # Adjust range based on your template
-        item_name = sheet[f'A{row}'].value
-        if item_name:
-            current_year = sheet[f'B{row}'].value
-            previous_year = sheet[f'C{row}'].value
-            
-            # Assume zero for missing values
-            if current_year is None or current_year == "":
-                current_year = 0
-                errors.append(f"Income - Missing value for '{item_name}' (Current Year)")
-            if previous_year is None or previous_year == "":
-                previous_year = 0
-                errors.append(f"Income - Missing value for '{item_name}' (Previous Year)")
-            
-            data[item_name] = {'current': current_year, 'previous': previous_year}
-    return data
-
-def extract_balance_data(sheet):
-    """Extract data from balance sheet."""
-    data = {}
-    errors = []
-    for row in range(4, 45):  # Adjust range based on your template
-        item_name = sheet[f'A{row}'].value
-        if item_name:
-            current_year = sheet[f'B{row}'].value
-            previous_year = sheet[f'C{row}'].value
-            
-            # Assume zero for missing values
-            if current_year is None or current_year == "":
-                current_year = 0
-                errors.append(f"Balance - Missing value for '{item_name}' (Current Year)")
-            if previous_year is None or previous_year == "":
-                previous_year = 0
-                errors.append(f"Balance - Missing value for '{item_name}' (Previous Year)")
-            
-            data[item_name] = {'current': current_year, 'previous': previous_year}
-    return data
-
-def extract_equity_data(sheet):
-    """Extract data from equity statement sheet."""
-    data = {}
-    errors = []
-    for row in range(4, 11):  # Adjust range based on your template
-        item_name = sheet[f'A{row}'].value
-        if item_name:
-            capital = sheet[f'B{row}'].value
-            reserves = sheet[f'C{row}'].value
-            retained = sheet[f'D{row}'].value
-            total = sheet[f'E{row}'].value
-            
-            # Assume zero for missing values
-            if capital is None or capital == "":
-                capital = 0
-                errors.append(f"Equity - Missing value for '{item_name}' (Capital)")
-            if reserves is None or reserves == "":
-                reserves = 0
-                errors.append(f"Equity - Missing value for '{item_name}' (Reserves)")
-            if retained is None or retained == "":
-                retained = 0
-                errors.append(f"Equity - Missing value for '{item_name}' (Retained Earnings)")
-            if total is None or total == "":
-                total = 0
-                errors.append(f"Equity - Missing value for '{item_name}' (Total)")
-            
-            data[item_name] = {
-                'capital': capital,
-                'reserves': reserves,
-                'retained': retained,
-                'total': total
-            }
-    return data
-
-def extract_cash_flow_data(sheet):
-    """Extract data from cash flow statement sheet."""
-    data = {}
-    errors = []
-    for row in range(4, 31):  # Adjust range based on your template
-        item_name = sheet[f'A{row}'].value
-        if item_name:
-            current_year = sheet[f'B{row}'].value
-            previous_year = sheet[f'C{row}'].value
-            
-            # Assume zero for missing values
-            if current_year is None or current_year == "":
-                current_year = 0
-                errors.append(f"Cash Flow - Missing value for '{item_name}' (Current Year)")
-            if previous_year is None or previous_year == "":
-                previous_year = 0
-                errors.append(f"Cash Flow - Missing value for '{item_name}' (Previous Year)")
-            
-            data[item_name] = {'current': current_year, 'previous': previous_year}
-    return data
-
-def extract_notes_data(sheet):
-    """Extract notes data."""
-    notes = {}
-    note_rows = [
-        (4, 'note1'),  # General Information
-        (8, 'note2'),  # Basis of Preparation
-        (12, 'note3'),  # Significant Accounting Policies
-        (16, 'note4'),  # Judgments and Estimates
-        (20, 'note5'),  # Financial Risk Management
-        (24, 'note6'),  # Additional Information
-        (28, 'note7')   # Subsequent Events
-    ]
-    for row, note_key in note_rows:
-        if sheet[f'B{row}'].value:
-            notes[note_key] = sheet[f'B{row}'].value
+    
+    for row, title, note_key in notes:
+        sheet[f'A{row}'] = title
+        sheet[f'A{row}'].font = Font(bold=True)
+        
+        # Add note content
+        if note_key in notes_data and notes_data[note_key]:
+            sheet[f'B{row+1}'] = notes_data[note_key]
         else:
-            notes[note_key] = ""
-            errors.append(f"Notes - Missing information for '{note_key}'")
-    return notes
+            sheet[f'B{row+1}'] = "لم يتم تقديم معلومات. | No information provided."
 
-def collect_errors(data):
-    """Collect all errors and missing values from the extracted data."""
-    errors = []
-    for section, items in data.items():
-        if isinstance(items, dict):
-            for item, values in items.items():
-                if isinstance(values, dict):
-                    for key, value in values.items():
-                        if value is None or value == "":
-                            errors.append(f"{section} - Missing value for '{item}' ({key})")
-    return errors
+def generate_charts(sheet, data):
+    """Generate financial charts."""
+    # Set up header
+    sheet['A1'] = 'الرسوم البيانية المالية | Financial Charts'
+    sheet['A1'].font = Font(bold=True, size=16)
+    
+    try:
+        # Extract data for charts
+        income_data = data['income']
+        balance_data = data['balance']
+        cash_flow_data = data['cash_flow']
+        
+        # Create revenue vs expenses chart
+        revenue_current = income_data.get('إجمالي الإيرادات | Total Revenue', {}).get('current', 0)
+        revenue_previous = income_data.get('إجمالي الإيرادات | Total Revenue', {}).get('previous', 0)
+        
+        expenses_current = income_data.get('إجمالي المصروفات | Total Expenses', {}).get('current', 0)
+        expenses_previous = income_data.get('إجمالي المصروفات | Total Expenses', {}).get('previous', 0)
+        
+        net_profit_current = income_data.get('صافي الربح | Net Profit', {}).get('current', 0)
+        net_profit_previous = income_data.get('صافي الربح | Net Profit', {}).get('previous', 0)
+        
+        # Add data for chart 1
+        sheet['A3'] = 'مقارنة الإيرادات والمصروفات | Revenue vs Expenses Comparison'
+        sheet['A3'].font = Font(bold=True)
+        
+        sheet['A5'] = 'البند | Item'
+        sheet['B5'] = 'السنة الحالية | Current Year'
+        sheet['C5'] = 'السنة السابقة | Previous Year'
+        
+        sheet['A6'] = 'الإيرادات | Revenue'
+        sheet['B6'] = revenue_current
+        sheet['C6'] = revenue_previous
+        
+        sheet['A7'] = 'المصروفات | Expenses'
+        sheet['B7'] = expenses_current
+        sheet['C7'] = expenses_previous
+        
+        sheet['A8'] = 'صافي الربح | Net Profit'
+        sheet['B8'] = net_profit_current
+        sheet['C8'] = net_profit_previous
+        
+        # Create chart 1
+        chart1 = BarChart()
+        chart1.title = "مقارنة الإيرادات والمصروفات | Revenue vs Expenses"
+        chart1.style = 10
+        chart1.x_axis.title = "البند | Item"
+        chart1.y_axis.title = "القيمة | Value"
+        
+        data1 = Reference(sheet, min_col=2, min_row=5, max_row=8, max_col=3)
+        cats1 = Reference(sheet, min_col=1, min_row=6, max_row=8)
+        chart1.add_data(data1, titles_from_data=True)
+        chart1.set_categories(cats1)
+        chart1.shape = 4
+        sheet.add_chart(chart1, "E3")
+        
+        # Add data for chart 2 - Assets, Liabilities and Equity
+        sheet['A12'] = 'مقارنة الأصول والخصوم وحقوق الملكية | Assets, Liabilities and Equity Comparison'
+        sheet['A12'].font = Font(bold=True)
+        
+        assets_current = balance_data.get('إجمالي الأصول | Total Assets', {}).get('current', 0)
+        liabilities_current = balance_data.get('إجمالي الخصوم | Total Liabilities', {}).get('current', 0)
+        equity_current = balance_data.get('إجمالي حقوق الملكية | Total Equity', {}).get('current', 0)
+        
+        sheet['A14'] = 'البند | Item'
+        sheet['B14'] = 'القيمة | Value'
+        
+        sheet['A15'] = 'الأصول | Assets'
+        sheet['B15'] = assets_current
+        
+        sheet['A16'] = 'الخصوم | Liabilities'
+        sheet['B16'] = liabilities_current
+        
+        sheet['A17'] = 'حقوق الملكية | Equity'
+        sheet['B17'] = equity_current
+        
+        # Create chart 2
+        chart2 = PieChart()
+        chart2.title = "توزيع الأصول والخصوم وحقوق الملكية | Distribution of Assets, Liabilities and Equity"
+        chart2.style = 10
+        
+        data2 = Reference(sheet, min_col=2, min_row=14, max_row=17)
+        cats2 = Reference(sheet, min_col=1, min_row=15, max_row=17)
+        chart2.add_data(data2, titles_from_data=True)
+        chart2.set_categories(cats2)
+        chart2.dataLabels = True
+        sheet.add_chart(chart2, "E12")
+        
+        # Add data for chart 3 - Cash Flow Comparison
+        sheet['A21'] = 'مقارنة التدفقات النقدية | Cash Flow Comparison'
+        sheet['A21'].font = Font(bold=True)
+        
+        operating_current = cash_flow_data.get('صافي النقد من الأنشطة التشغيلية | Net cash from operating activities', {}).get('current', 0)
+        investing_current = cash_flow_data.get('صافي النقد من الأنشطة الاستثمارية | Net cash from investing activities', {}).get('current', 0)
+        financing_current = cash_flow_data.get('صافي النقد من الأنشطة التمويلية | Net cash from financing activities', {}).get('current', 0)
+        
+        operating_previous = cash_flow_data.get('صافي النقد من الأنشطة التشغيلية | Net cash from operating activities', {}).get('previous', 0)
+        investing_previous = cash_flow_data.get('صافي النقد من الأنشطة الاستثمارية | Net cash from investing activities', {}).get('previous', 0)
+        financing_previous = cash_flow_data.get('صافي النقد من الأنشطة التمويلية | Net cash from financing activities', {}).get('previous', 0)
+        
+        sheet['A23'] = 'مصدر التدفق النقدي | Cash Flow Source'
+        sheet['B23'] = 'السنة الحالية | Current Year'
+        sheet['C23'] = 'السنة السابقة | Previous Year'
+        
+        sheet['A24'] = 'الأنشطة التشغيلية | Operating Activities'
+        sheet['B24'] = operating_current
+        sheet['C24'] = operating_previous
+        
+        sheet['A25'] = 'الأنشطة الاستثمارية | Investing Activities'
+        sheet['B25'] = investing_current
+        sheet['C25'] = investing_previous
+        
+        sheet['A26'] = 'الأنشطة التمويلية | Financing Activities'
+        sheet['B26'] = financing_current
+        sheet['C26'] = financing_previous
+        
+        # Create chart 3
+        chart3 = BarChart()
+        chart3.title = "مقارنة التدفقات النقدية | Cash Flow Comparison"
+        chart3.style = 10
+        chart3.x_axis.title = "مصدر التدفق النقدي | Cash Flow Source"
+        chart3.y_axis.title = "القيمة | Value"
+        
+        data3 = Reference(sheet, min_col=2, min_row=23, max_row=26, max_col=3)
+        cats3 = Reference(sheet, min_col=1, min_row=24, max_row=26)
+        chart3.add_data(data3, titles_from_data=True)
+        chart3.set_categories(cats3)
+        sheet.add_chart(chart3, "E21")
+        
+    except Exception as e:
+        sheet['A30'] = f"خطأ في إنشاء الرسوم البيانية: {str(e)}"
