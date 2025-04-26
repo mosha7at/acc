@@ -19,7 +19,11 @@ def create_template(output_path):
     
     # Rename the default sheet
     sheets['تعليمات | Instructions'].title = 'تعليمات | Instructions'
-    
+    sheets['الإيرادات والمصروفات | Income'].title = 'الإيرادات والمصروفات | Income'
+    sheets['الأصول والخصوم | Balance'].title = 'الأصول والخصوم | Balance'
+    sheets['حقوق الملكية | Equity'].title = 'حقوق الملكية | Equity'
+    sheets['التدفقات النقدية | Cash Flow'].title = 'التدفقات النقدية | Cash Flow'
+    sheets['الملاحظات | Notes'].title = 'الملاحظات | Notes'
     # Set up Instructions sheet
     instructions = sheets['تعليمات | Instructions']
     instructions['A1'] = 'تعليمات استخدام القالب | Template Instructions'
