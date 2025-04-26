@@ -483,22 +483,23 @@ def generate_charts(sheet, data):
         sheet['B17'] = equity_current
 
         # Create chart 2 - Assets, Liabilities and Equity
-        chart2 = PieChart()
-        chart2.title = "توزيع الأصول والخصوم وحقوق الملكية | Distribution of Assets, Liabilities and Equity"
-        chart2.style = 10
-
-        # Add data and categories
-        data2 = Reference(sheet, min_col=2, min_row=14, max_row=17)
-        cats2 = Reference(sheet, min_col=1, min_row=15, max_row=17)
-        chart2.add_data(data2, titles_from_data=True)
-        chart2.set_categories(cats2)
-
-        # Fix the dataLabels issue
         from openpyxl.chart.label import DataLabelList
-        chart2.dataLabels = DataLabelList()
-        chart2.dataLabels.showVal = True  # Show values on the chart
 
-        sheet.add_chart(chart2, "E12")
+         chart2 = PieChart()
+         chart2.title = "توزيع الأصول والخصوم وحقوق الملكية | Distribution of Assets, Liabilities and Equity"
+         chart2.style = 10
+
+       # Add data and categories
+         data2 = Reference(sheet, min_col=2, min_row=14, max_row=17)
+         cats2 = Reference(sheet, min_col=1, min_row=15, max_row=17)
+         chart2.add_data(data2, titles_from_data=True)
+         chart2.set_categories(cats2)
+
+       # Fix the dataLabels issue
+         chart2.dataLabels = DataLabelList()
+         chart2.dataLabels.showVal = True  # Show values on the chart
+
+         sheet.add_chart(chart2, "E12")
 
         # Add data for chart 3 - Cash Flow Comparison
         sheet['A21'] = 'مقارنة التدفقات النقدية | Cash Flow Comparison'
