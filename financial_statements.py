@@ -483,8 +483,6 @@ def generate_charts(sheet, data):
         sheet['B17'] = equity_current
 
         # Create chart 2 - Assets, Liabilities and Equity
-        from openpyxl.chart.label import DataLabelList
-
          chart2 = PieChart()
          chart2.title = "توزيع الأصول والخصوم وحقوق الملكية | Distribution of Assets, Liabilities and Equity"
          chart2.style = 10
