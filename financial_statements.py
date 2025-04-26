@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.chart import BarChart, Reference, PieChart, LineChart, Series
+from openpyxl.chart.label import DataLabelList
 
 def generate_financial_statements(data, output_path):
     """Generate financial statements based on the provided data."""
